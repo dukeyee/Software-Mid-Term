@@ -5,10 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="稿間投稿審查系統：管理創作、送出投稿與編輯審查">
   <title>稿間｜投稿審查系統</title>
-  <link rel="stylesheet" href="styles.css?v=20261116-register">
-  <script src="core.js?v=20261116-register" defer></script>
-  <script src="auth.js?v=20261116-register" defer></script>
-  <script src="app.js?v=20261116-register" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20261116-database">
+  <script src="core.js?v=20261116-database" defer></script>
+  <script src="app.js?v=20261116-database" defer></script>
 </head>
 <body>
   <main class="login-page" id="login-page">
@@ -16,7 +15,7 @@
     <section class="login-panel" aria-labelledby="login-title"><span class="eyebrow">WELCOME BACK</span><h2 id="login-title">登入稿間</h2><p class="login-description">使用自己的帳號登入，或選擇下方示範帳號體驗</p>
       <form id="login-form"><label class="field"><span>帳號</span><input id="login-username" name="username" autocomplete="username" required placeholder="請輸入帳號" autocapitalize="none" spellcheck="false"></label><label class="field"><span>密碼</span><input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="請輸入密碼"></label><p class="form-error" id="login-error" role="alert" hidden></p><button class="primary login-submit" type="submit">登入工作空間 <span aria-hidden="true">→</span></button></form>
       <p class="register-link">還沒有帳號？<button type="button" id="open-register">註冊作者帳號 <span aria-hidden="true">↗</span></button></p>
-      <section class="demo-accounts" aria-labelledby="demo-title"><h3 id="demo-title">示範帳號</h3><p>共用密碼 <code>demo123</code> · 點選帳號可自動帶入</p><div id="demo-accounts"></div></section><p class="login-disclosure">課堂示範版 · 瀏覽器本機帳號<br>註冊帳號與稿件僅保存在目前瀏覽器，不會跨裝置共用</p>
+      <section class="demo-accounts" aria-labelledby="demo-title"><h3 id="demo-title">示範帳號</h3><p>共用密碼 <code>demo123</code> · 點選帳號可自動帶入</p><div id="demo-accounts"></div></section><p class="login-disclosure">資料庫版 · 帳號與稿件跨裝置共用<br>請使用自己的帳號投稿，示範帳號供課堂展示</p>
     </section>
   </main>
   <aside class="sidebar" id="app-sidebar" hidden>
@@ -27,7 +26,7 @@
     <div class="sidebar-bottom"><span class="version-dot"></span> 期中個人專題 <span>v0.1</span></div>
   </aside>
   <div class="shell" id="app-shell" hidden>
-    <header class="topbar"><div class="breadcrumb">工作空間 <span>/</span> <strong id="breadcrumb">我的投稿</strong></div><div class="identity"><span id="current-identity"></span><span class="avatar" id="avatar" aria-hidden="true">龍</span><button class="secondary logout-button" id="logout">登出</button></div></header>
+    <header class="topbar"><div class="breadcrumb">工作空間 <span>/</span> <strong id="breadcrumb">我的投稿</strong></div><div class="identity"><span id="current-identity"></span><span class="avatar" id="avatar" aria-hidden="true">龍</span><button class="secondary logout-button" id="refresh-data">更新資料</button><button class="secondary logout-button" id="logout">登出</button></div></header>
     <main id="main">
       <div class="page-heading"><div><div class="eyebrow" id="eyebrow">YOUR WRITING, IN PROGRESS</div><h1 id="page-title">我的投稿</h1><p id="page-description">好好寫作，讓每一個想法找到自己的位置</p></div><button class="primary new-button" id="new"><span aria-hidden="true">＋</span> 新增投稿</button></div>
       <div class="storage-notice" id="storage-notice" role="alert" hidden></div>
@@ -40,11 +39,11 @@
         <div class="table-footer"><span id="result-count" role="status"></span><span>用文字，留下你的觀點</span></div>
       </section>
       <div class="page-note"><span class="note-icon" aria-hidden="true">i</span><p id="workflow-note">編輯中的稿件可隨時修改；送出後將交由編輯審查，退回後可再次編輯</p></div>
-      <footer class="footer"><span>稿間 <span class="footer-divider">/</span> 投稿審查系統</span><span>示範版 · 資料僅儲存於此瀏覽器</span></footer>
+      <footer class="footer"><span>稿間 <span class="footer-divider">/</span> 投稿審查系統</span><span>資料庫版 · Cloudflare D1</span></footer>
     </main>
   </div>
   <dialog id="article-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
-  <dialog id="register-dialog" aria-labelledby="register-title"><div class="dialog-head"><div><span class="eyebrow">START YOUR STORY</span><h2 id="register-title">註冊作者帳號</h2></div><button type="button" class="icon-button" id="register-close" aria-label="關閉註冊視窗">×</button></div><form class="register-form" id="register-form"><p class="register-description">建立自己的作者身分，開始管理你的投稿</p><label class="field"><span>顯示名稱 <small>最多 20 字</small></span><input name="name" id="register-name" required maxlength="20" autocomplete="nickname" placeholder="你希望大家怎麼稱呼你"></label><label class="field"><span>帳號 <small>3–24 個字元</small></span><input name="username" id="register-username" required minlength="3" maxlength="24" pattern="[A-Za-z][A-Za-z0-9_]{2,23}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="英文字母開頭，可包含數字與底線"></label><div class="form-split"><label class="field"><span>密碼 <small>至少 8 個字元</small></span><input name="password" id="register-password" required minlength="8" maxlength="128" type="password" autocomplete="new-password" placeholder="設定登入密碼"></label><label class="field"><span>確認密碼</span><input name="confirmPassword" id="register-confirm" required minlength="8" maxlength="128" type="password" autocomplete="new-password" placeholder="再次輸入密碼"></label></div><p class="form-error" id="register-error" role="alert" hidden></p><p class="login-disclosure">這是本機作者帳號，僅限目前瀏覽器與網站網址使用<br>清除網站資料會移除帳號與稿件</p><div class="dialog-actions"><button type="button" class="secondary" id="register-cancel">取消</button><button type="submit" class="primary" id="register-submit">建立帳號</button></div></form></dialog>
+  <dialog id="register-dialog" aria-labelledby="register-title"><div class="dialog-head"><div><span class="eyebrow">START YOUR STORY</span><h2 id="register-title">註冊作者帳號</h2></div><button type="button" class="icon-button" id="register-close" aria-label="關閉註冊視窗">×</button></div><form class="register-form" id="register-form"><p class="register-description">建立自己的作者身分，開始管理你的投稿</p><label class="field"><span>顯示名稱 <small>最多 20 字</small></span><input name="name" id="register-name" required maxlength="20" autocomplete="nickname" placeholder="你希望大家怎麼稱呼你"></label><label class="field"><span>帳號 <small>3–24 個字元</small></span><input name="username" id="register-username" required minlength="3" maxlength="24" pattern="[A-Za-z][A-Za-z0-9_]{2,23}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="英文字母開頭，可包含數字與底線"></label><div class="form-split"><label class="field"><span>密碼 <small>至少 8 個字元</small></span><input name="password" id="register-password" required minlength="8" maxlength="128" type="password" autocomplete="new-password" placeholder="設定登入密碼"></label><label class="field"><span>確認密碼</span><input name="confirmPassword" id="register-confirm" required minlength="8" maxlength="128" type="password" autocomplete="new-password" placeholder="再次輸入密碼"></label></div><p class="form-error" id="register-error" role="alert" hidden></p><p class="login-disclosure">帳號與稿件保存在網站資料庫<br>註冊後可在其他裝置使用相同帳號登入</p><div class="dialog-actions"><button type="button" class="secondary" id="register-cancel">取消</button><button type="submit" class="primary" id="register-submit">建立帳號</button></div></form></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><div><span class="eyebrow">CONFIRM ACTION</span><h2 id="confirm-title"></h2></div><button class="icon-button" id="confirm-close" aria-label="關閉確認視窗">×</button></div><p class="confirm-message" id="confirm-message"></p><div class="return-fields" id="return-fields" hidden><label class="field"><span>退回原因 <small>必填 · 最多 1,000 字</small></span><textarea id="return-reason" maxlength="1000" placeholder="請說明需要修改的地方，讓作者知道如何調整"></textarea></label><p class="form-error" id="reason-error" role="alert" hidden>請填寫退回原因，不能只輸入空白</p></div><div class="dialog-actions"><button class="secondary" id="confirm-cancel">取消</button><button class="primary" id="confirm-ok">確認</button></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </body>

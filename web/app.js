@@ -1,61 +1,38 @@
 (() => {
   'use strict';
+  if (location.hostname.endsWith('github.io')) { location.replace('https://dukeyee-submission-review.familiarboot4.chatgpt.site/'); return; }
   const Core = window.ReviewCore;
-  const Auth = window.ReviewAuth;
   const $ = selector => document.querySelector(selector);
-  const KEY = 'manuscript-studio:v1';
-  const SESSION_KEY = 'manuscript-studio:demo-session:v1';
-  const ACCOUNTS_KEY = 'manuscript-studio:accounts:v1';
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let user = null, filter = 'all', query = '', blocked = false, timer, pendingConfirm;
-  function readAccounts() {
-    const saved = localStorage.getItem(ACCOUNTS_KEY);
-    const accounts = saved === null ? [] : JSON.parse(saved);
-    if (!Auth.valid(accounts)) throw new Error('帳號資料無法讀取，請保留現有網站資料並檢查瀏覽器儲存設定');
-    Core.loadAuthors(accounts);
-    return accounts;
+  let user = null, rows = [], filter = 'all', query = '', blocked = false, timer, pendingConfirm;
+  const dialog = $('#article-dialog'), confirmDialog = $('#confirm-dialog');
+  async function api(path, payload) {
+    const response = await fetch(path, { method: payload === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: payload === undefined ? {} : { 'Content-Type': 'application/json' }, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) });
+    let data; try { data = await response.json(); } catch { throw new Error('無法連接資料庫服務，請稍後再試'); }
+    if (!response.ok) { const error = new Error(data.error || '操作失敗'); error.status = response.status; throw error; }
+    return data;
   }
-  try { readAccounts(); } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
-  try { user = Core.users.find(item => item.id === sessionStorage.getItem(SESSION_KEY)) || null; } catch {}
-  const dialog = $('#article-dialog');
-  const confirmDialog = $('#confirm-dialog');
-  function notice(message) { $('#storage-notice').textContent = message; $('#storage-notice').hidden = false; }
-  function read() {
-    readAccounts();
-    const saved = localStorage.getItem(KEY);
-    if (saved === null) return null;
-    const rows = JSON.parse(saved);
-    if (!Core.valid(rows)) throw new Error('無效的稿件資料');
-    return rows.map(row => ({
-      ...row,
-      title: row.title.replace(/[\u3002\uff0e]/g, ''),
-      content: row.content.replace(/[\u3002\uff0e]/g, ''),
-      ...(row.returnReason === undefined ? {} : { returnReason: row.returnReason.replace(/[\u3002\uff0e]/g, '') })
-    }));
+  function applySnapshot(data) {
+    user = data.user; rows = data.rows;
+    Core.loadAuthors(data.users.filter(item => !Core.demoUsers.some(demo => demo.id === item.id)));
   }
-  let rows;
-  try {
-    rows = read();
-    if (rows === null) { rows = Core.seed(); localStorage.setItem(KEY, JSON.stringify(rows)); }
-  } catch {
-    rows = []; blocked = true;
-    notice('無法讀取或儲存瀏覽器資料，為保留原有資料，已暫停新增與修改，請允許網站儲存資料；若問題持續，請先備份瀏覽器中的網站資料再處理');
-  }
+  async function refresh() { const data = await api('/api/session'); applySnapshot(data); render(); }
   function toast(message, error = false) {
     clearTimeout(timer); const element = $('#toast');
     element.textContent = message; element.classList.toggle('error', error); element.hidden = false;
     timer = setTimeout(() => { element.hidden = true; }, 4500);
   }
-  function commit(command, input, success) {
+  async function commit(command, input, success) {
     try {
-      if (blocked) throw new Error('目前無法儲存資料，請先處理頁面上方的提示');
-      // Re-read before every operation so an old view cannot overwrite a newer tab's work.
-      const latest = read();
-      if (latest === null) throw new Error('網站資料已變更，請重新整理頁面後再操作');
-      const next = Core.transition(latest, user, command, input);
-      localStorage.setItem(KEY, JSON.stringify(next));
-      rows = next; render(); toast(success); return true;
-    } catch (error) { toast(error.message || '儲存失敗，請稍後再試', true); return false; }
+      const current = rows.find(row => row.id === input.id);
+      const endpoint = command === 'create' ? '/api/manuscripts' : '/api/manuscripts/' + encodeURIComponent(input.id) + '/' + command;
+      const data = await api(endpoint, { ...input, version: current?.version });
+      applySnapshot(data); render(); toast(success); return true;
+    } catch (error) {
+      if (error.status === 401) { user = null; rows = []; dialog.close(); dirty = false; render(); }
+      if (error.status === 409) { try { await refresh(); } catch {} }
+      toast(error.message || '儲存失敗，請稍後再試', true); return false;
+    }
   }
   const badge = status => `<span class="status ${status}">${Core.statuses[status]}</span>`;
   const date = value => new Intl.DateTimeFormat('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
@@ -147,11 +124,11 @@
     dirty = false;
     $('#dialog-content').innerHTML = `${head(row ? '編輯投稿' : '寫下新的想法', 'MANUSCRIPT / DRAFT')}<form class="editor-form" id="editor-form">${returnNotice(row)}<div class="form-split"><label class="field"><span>稿件類別 <small>必填</small></span><select name="category" required><option value="">請選擇類別</option>${Core.categories.map(category => `<option ${row?.category === category ? 'selected' : ''}>${category}</option>`).join('')}</select></label><label class="field"><span>稿件標題 <small>必填 · 最多 100 字</small></span><input name="title" maxlength="100" required placeholder="為這篇創作取個名字" value="${escape(row?.title || '')}"></label></div><label class="field"><span>文章內容 <small>必填</small></span><textarea name="content" required maxlength="20000" placeholder="你的故事，就從這裡開始…">${escape(row?.content || '')}</textarea></label><div class="word-count" id="word-count">${row?.content.length || 0} / 20,000 字</div><p class="form-error" id="form-error" role="alert" hidden></p><div class="dialog-actions"><span class="save-note">儲存後的狀態為「編輯中」</span><button type="button" class="secondary" data-close>取消</button><button type="submit" class="primary">儲存稿件</button></div></form>`;
     $('#editor-form').addEventListener('input', () => { dirty = true; $('#word-count').textContent = `${$('#editor-form textarea').value.length} / 20,000 字`; });
-    $('#editor-form').addEventListener('submit', event => {
+    $('#editor-form').addEventListener('submit', async event => {
       event.preventDefault();
       const input = Object.fromEntries(new FormData(event.currentTarget));
       if (!input.title.trim() || !input.content.trim()) { $('#form-error').hidden = false; $('#form-error').textContent = '標題與文章內容不能只填空白'; return; }
-      if (commit(row ? 'update' : 'create', { ...input, id: row?.id }, '稿件已儲存，可繼續修改或送出投稿')) { dirty = false; dialog.close(); }
+      if (await commit(row ? 'update' : 'create', { ...input, id: row?.id }, '稿件已儲存，可繼續修改或送出投稿')) { dirty = false; dialog.close(); }
     });
     dialog.showModal();
   }
@@ -175,7 +152,7 @@
     if (!options[command]) return;
     const [title, message, button, success] = options[command];
     if (await confirmAction(title, message, button, command === 'delete', command === 'return')) {
-      if (commit(command, { id, reason: $('#return-reason').value }, success)) { dirty = false; dialog.close(); }
+      if (await commit(command, { id, reason: $('#return-reason').value }, success)) { dirty = false; dialog.close(); }
     }
   }
   document.addEventListener('click', event => {
@@ -201,17 +178,9 @@
     if (loggingIn) return;
     loggingIn = true; const loginButton = $('#login-form button[type="submit"]'); loginButton.disabled = true;
     try {
-      const accounts = readAccounts(), username = Auth.normalize($('#login-username').value);
-      const custom = accounts.find(item => item.username === username);
-      let authenticated;
-      if (custom) {
-        if (!await Auth.verify(custom, $('#login-password').value)) throw new Error('帳號或密碼不正確，請重新輸入');
-        authenticated = Core.users.find(item => item.id === custom.id);
-      } else authenticated = Core.demoLogin(username, $('#login-password').value);
-      user = authenticated;
-      try { sessionStorage.setItem(SESSION_KEY, user.id); } catch {}
+      const data = await api('/api/login', { username: $('#login-username').value, password: $('#login-password').value });
+      applySnapshot(data);
       $('#login-error').hidden = true; $('#login-password').value = '';
-      try { const latest = read(); if (latest !== null) rows = latest; } catch {}
       filter = 'all'; query = ''; $('#search').value = ''; render();
       $('#logout').focus(); toast(`歡迎回來，${user.name}`);
     } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
@@ -233,13 +202,8 @@
     $('#register-submit').textContent = '建立中…'; $('#register-error').hidden = true;
     try {
       const input = Object.fromEntries(new FormData(event.currentTarget));
-      const account = await Auth.register(input, readAccounts());
-      const latest = readAccounts();
-      if (!Auth.available(account.username, latest)) throw new Error('這個帳號已有人使用，請更換帳號');
-      const next = [...latest, account];
-      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next));
-      Core.loadAuthors(next);
-      $('#login-username').value = account.username; $('#login-password').value = '';
+      const result = await api('/api/register', input);
+      $('#login-username').value = result.user.username; $('#login-password').value = '';
       $('#login-error').hidden = true;
       $('#register-form').reset(); registerDialog.close(); $('#login-password').focus();
       toast('註冊成功，請使用新帳號與剛設定的密碼登入');
@@ -251,21 +215,21 @@
       $('#register-submit').textContent = '建立帳號';
     }
   });
-  $('#logout').addEventListener('click', () => {
+  $('#logout').addEventListener('click', async () => {
+    try { await api('/api/logout', {}); } catch (error) { toast(error.message, true); return; }
     user = null; dirty = false; dialog.close();
-    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    rows = []; Core.loadAuthors([]);
     $('#login-form').reset(); $('#login-error').hidden = true; $('#toast').hidden = true;
     render(); $('#login-username').focus();
   });
   $('#new').addEventListener('click', () => openEditor());
   $('#empty-new').addEventListener('click', () => openEditor());
   $('#workspace').addEventListener('click', () => { filter = 'all'; query = ''; $('#search').value = ''; render(); $('#main').scrollIntoView({ behavior: 'smooth' }); });
-  window.addEventListener('storage', event => {
-    if (event.key !== KEY && event.key !== ACCOUNTS_KEY && event.key !== null) return;
-    try {
-      const current = read(); if (current === null) throw new Error('missing'); rows = current; render();
-      toast('另一個分頁已更新稿件；若正在編輯，請重新開啟以取得最新內容');
-    } catch { blocked = true; notice('瀏覽器資料已移除或格式有誤，請重新整理頁面後再操作'); render(); }
-  });
+  $('#refresh-data').addEventListener('click', async () => { try { await refresh(); toast('資料已更新'); } catch (error) { toast(error.message, true); } });
+  window.addEventListener('focus', () => { if (user && !dialog.open && !confirmDialog.open) refresh().catch(() => {}); });
+  $('#login-form button[type="submit"]').disabled = true;
   render();
+  api('/api/session').then(data => { applySnapshot(data); render(); }).catch(error => {
+    if (error.status !== 401) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
+  }).finally(() => { $('#login-form button[type="submit"]').disabled = false; });
 })();

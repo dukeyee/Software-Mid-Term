@@ -4,9 +4,17 @@
   "private": true,
   "description": "投稿審查系統初版：瀏覽器本機示範",
   "scripts": {
-    "start": "node scripts/server.cjs",
-    "build": "node scripts/build.cjs",
-    "test": "node --test tests/*.test.cjs"
+    "start": "node scripts/database-server.mjs",
+    "build": "node scripts/build-worker.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "db:generate": "node node_modules/drizzle-kit/bin.cjs generate"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2"
+  },
+  "packageManager": "pnpm@11.25.0"
 }
