@@ -1,9 +1,9 @@
 (function (root) {
   'use strict';
   const users = Object.freeze([
-    { id: 'author-1', name: '林以安', role: 'author' },
-    { id: 'author-2', name: '陳子晴', role: 'author' },
-    { id: 'editor-1', name: '王思涵', role: 'editor' }
+    { id: 'author-1', name: '奶龍', role: 'author' },
+    { id: 'author-2', name: '奶蛙', role: 'author' },
+    { id: 'editor-1', name: '自由時報', role: 'editor' }
   ]);
   const categories = Object.freeze(['生活散文', '校園觀察', '科技新知', '文化評論', '其他']);
   const statuses = Object.freeze({ draft: '編輯中', review: '審查中', approved: '已通過' });

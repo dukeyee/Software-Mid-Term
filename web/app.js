@@ -77,7 +77,7 @@
     $('#list-heading').textContent = editing ? '稿件管理' : '審查工作台';
     $('#list-description').textContent = editing ? '每一次修改，都是離完成更近一步。' : '查看完整內容，選擇通過或退回給作者。';
     $('#workflow-note').textContent = editing ? '編輯中的稿件可隨時修改；送出後將交由編輯審查，退回後可再次編輯。' : '此處僅顯示審查中的稿件；通過或退回後，稿件會從待審查清單移除。';
-    $('#avatar').textContent = user.name[0];
+    $('#avatar').textContent = user.role === 'editor' ? '報' : user.name.slice(-1);
     $('#new').hidden = !editing; $('#new').disabled = blocked;
     $('#author-heading').hidden = editing;
     $('#table-caption').textContent = editing ? '我的投稿清單' : '待審查稿件清單';
