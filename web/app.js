@@ -3,8 +3,10 @@
   const Core = window.ReviewCore;
   const $ = selector => document.querySelector(selector);
   const KEY = 'manuscript-studio:v1';
+  const SESSION_KEY = 'manuscript-studio:demo-session:v1';
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let user = Core.users[0], filter = 'all', query = '', blocked = false, timer, pendingConfirm;
+  let user = null, filter = 'all', query = '', blocked = false, timer, pendingConfirm;
+  try { user = Core.users.find(item => item.id === sessionStorage.getItem(SESSION_KEY)) || null; } catch {}
   const dialog = $('#article-dialog');
   const confirmDialog = $('#confirm-dialog');
   function notice(message) { $('#storage-notice').textContent = message; $('#storage-notice').hidden = false; }
@@ -16,7 +18,8 @@
     return rows.map(row => ({
       ...row,
       title: row.title.replace(/[\u3002\uff0e]/g, ''),
-      content: row.content.replace(/[\u3002\uff0e]/g, '')
+      content: row.content.replace(/[\u3002\uff0e]/g, ''),
+      ...(row.returnReason === undefined ? {} : { returnReason: row.returnReason.replace(/[\u3002\uff0e]/g, '') })
     }));
   }
   let rows;
@@ -25,7 +28,7 @@
     if (rows === null) { rows = Core.seed(); localStorage.setItem(KEY, JSON.stringify(rows)); }
   } catch {
     rows = []; blocked = true;
-    notice('無法讀取或儲存瀏覽器資料，為保留原有資料，已暫停新增與修改請允許網站儲存資料；若問題持續，請先備份瀏覽器中的網站資料再處理');
+    notice('無法讀取或儲存瀏覽器資料，為保留原有資料，已暫停新增與修改，請允許網站儲存資料；若問題持續，請先備份瀏覽器中的網站資料再處理');
   }
   function toast(message, error = false) {
     clearTimeout(timer); const element = $('#toast');
@@ -46,6 +49,10 @@
   const badge = status => `<span class="status ${status}">${Core.statuses[status]}</span>`;
   const date = value => new Intl.DateTimeFormat('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
   const author = id => Core.users.find(item => item.id === id).name;
+  function returnNotice(row) {
+    if (!row?.returnReason) return '';
+    return `<section class="return-notice" aria-label="編輯退回原因"><h4>上次退回原因</h4><p>${escape(row.returnReason)}</p><small>${escape(row.returnedBy ? author(row.returnedBy) : '編輯')}${row.returnedAt ? ` · ${date(row.returnedAt)}` : ''}</small></section>`;
+  }
   function renderStats(items) {
     const counts = { all: items.length, draft: items.filter(x => x.status === 'draft').length, review: items.filter(x => x.status === 'review').length, approved: items.filter(x => x.status === 'approved').length };
     const data = user.role === 'author' ? [
@@ -61,7 +68,7 @@
     const term = query.trim().toLocaleLowerCase();
     const shown = items.filter(row => (filter === 'all' || row.status === filter) && (!term || `${row.title} ${row.category} ${user.role === 'editor' ? author(row.authorId) : ''}`.toLocaleLowerCase().includes(term))).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     $('#rows').innerHTML = shown.map(row => `<tr>
-      <td><button class="article-title" data-action="view" data-id="${escape(row.id)}">${escape(row.title)}</button><div class="article-meta">${escape(row.content.replace(/\s+/g, ' ').slice(0, 26))}…</div></td>
+      <td><button class="article-title" data-action="view" data-id="${escape(row.id)}">${escape(row.title)}</button>${row.returnReason && row.status === 'draft' ? '<span class="returned-label">已退回 · 點標題查看原因</span>' : ''}<div class="article-meta">${escape(row.content.replace(/\s+/g, ' ').slice(0, 26))}…</div></td>
       <td class="category">${escape(row.category)}</td>${user.role === 'editor' ? `<td class="category">${escape(author(row.authorId))}</td>` : ''}
       <td>${badge(row.status)}</td><td class="date">${date(row.updatedAt)}</td>
       <td><div class="row-actions">${user.role === 'author' && row.status === 'draft' ? `<button class="text-button" data-action="edit" data-id="${escape(row.id)}">編輯</button><button class="text-button" data-action="submit" data-id="${escape(row.id)}">送出</button><button class="text-button muted" data-action="delete" data-id="${escape(row.id)}">刪除</button>` : `<button class="text-button" data-action="view" data-id="${escape(row.id)}">${user.role === 'editor' ? '審查 →' : '查看 →'}</button>`}</div></td></tr>`).join('');
@@ -73,6 +80,10 @@
     $('#result-count').textContent = `顯示 ${shown.length} 篇，共 ${items.length} 篇稿件`;
   }
   function render() {
+    $('#login-page').hidden = !!user;
+    $('#app-shell').hidden = $('#app-sidebar').hidden = !user;
+    if (!user) return;
+    $('#current-identity').textContent = `${user.name} · ${user.role === 'author' ? '作者' : '編輯'}`;
     const editing = user.role === 'author', label = editing ? '我的投稿' : '待審查稿件';
     $('#nav-label').textContent = $('#breadcrumb').textContent = label;
     $('#page-title').textContent = label;
@@ -91,14 +102,23 @@
     $('#list-total').textContent = `${items.length} 篇稿件`;
     renderStats(items); renderRows(items);
   }
-  function confirmAction(title, message, button, danger = false) {
+  function confirmAction(title, message, button, danger = false, needsReason = false) {
     $('#confirm-title').textContent = title; $('#confirm-message').textContent = message;
     $('#confirm-ok').textContent = button; $('#confirm-ok').className = danger ? 'danger' : 'primary';
-    confirmDialog.showModal(); $('#confirm-cancel').focus();
+    $('#return-fields').hidden = !needsReason;
+    $('#return-reason').value = '';
+    $('#reason-error').hidden = true;
+    confirmDialog.showModal();
+    (needsReason ? $('#return-reason') : $('#confirm-cancel')).focus();
     return new Promise(resolve => { pendingConfirm = resolve; });
   }
   function resolveConfirm(value) { confirmDialog.close(); pendingConfirm?.(value); pendingConfirm = null; }
-  $('#confirm-ok').addEventListener('click', () => resolveConfirm(true));
+  $('#confirm-ok').addEventListener('click', () => {
+    if (!$('#return-fields').hidden && !$('#return-reason').value.trim()) {
+      $('#reason-error').hidden = false; $('#return-reason').focus(); return;
+    }
+    resolveConfirm(true);
+  });
   $('#confirm-cancel').addEventListener('click', () => resolveConfirm(false));
   $('#confirm-close').addEventListener('click', () => resolveConfirm(false));
   confirmDialog.addEventListener('cancel', event => { event.preventDefault(); resolveConfirm(false); });
@@ -114,7 +134,7 @@
     if (blocked) return toast('目前無法儲存資料', true);
     if (user.role !== 'author' || row && (row.authorId !== user.id || row.status !== 'draft')) return toast('這篇稿件目前無法編輯', true);
     dirty = false;
-    $('#dialog-content').innerHTML = `${head(row ? '編輯投稿' : '寫下新的想法', 'MANUSCRIPT / DRAFT')}<form class="editor-form" id="editor-form"><div class="form-split"><label class="field"><span>稿件類別 <small>必填</small></span><select name="category" required><option value="">請選擇類別</option>${Core.categories.map(category => `<option ${row?.category === category ? 'selected' : ''}>${category}</option>`).join('')}</select></label><label class="field"><span>稿件標題 <small>必填 · 最多 100 字</small></span><input name="title" maxlength="100" required placeholder="為這篇創作取個名字" value="${escape(row?.title || '')}"></label></div><label class="field"><span>文章內容 <small>必填</small></span><textarea name="content" required maxlength="20000" placeholder="你的故事，就從這裡開始…">${escape(row?.content || '')}</textarea></label><div class="word-count" id="word-count">${row?.content.length || 0} / 20,000 字</div><p class="form-error" id="form-error" role="alert" hidden></p><div class="dialog-actions"><span class="save-note">儲存後的狀態為「編輯中」</span><button type="button" class="secondary" data-close>取消</button><button type="submit" class="primary">儲存稿件</button></div></form>`;
+    $('#dialog-content').innerHTML = `${head(row ? '編輯投稿' : '寫下新的想法', 'MANUSCRIPT / DRAFT')}<form class="editor-form" id="editor-form">${returnNotice(row)}<div class="form-split"><label class="field"><span>稿件類別 <small>必填</small></span><select name="category" required><option value="">請選擇類別</option>${Core.categories.map(category => `<option ${row?.category === category ? 'selected' : ''}>${category}</option>`).join('')}</select></label><label class="field"><span>稿件標題 <small>必填 · 最多 100 字</small></span><input name="title" maxlength="100" required placeholder="為這篇創作取個名字" value="${escape(row?.title || '')}"></label></div><label class="field"><span>文章內容 <small>必填</small></span><textarea name="content" required maxlength="20000" placeholder="你的故事，就從這裡開始…">${escape(row?.content || '')}</textarea></label><div class="word-count" id="word-count">${row?.content.length || 0} / 20,000 字</div><p class="form-error" id="form-error" role="alert" hidden></p><div class="dialog-actions"><span class="save-note">儲存後的狀態為「編輯中」</span><button type="button" class="secondary" data-close>取消</button><button type="submit" class="primary">儲存稿件</button></div></form>`;
     $('#editor-form').addEventListener('input', () => { dirty = true; $('#word-count').textContent = `${$('#editor-form textarea').value.length} / 20,000 字`; });
     $('#editor-form').addEventListener('submit', event => {
       event.preventDefault();
@@ -127,7 +147,7 @@
   function openArticle(row) {
     if (!Core.visible(rows, user).some(item => item.id === row.id)) return toast('無法查看這篇稿件', true);
     dirty = false;
-    $('#dialog-content').innerHTML = `${head(user.role === 'editor' ? '稿件審查' : '稿件內容', 'MANUSCRIPT / READING')}<article class="article-body">${badge(row.status)}<h3>${escape(row.title)}</h3><div class="article-details"><span>作者 ${escape(author(row.authorId))}</span><span>${escape(row.category)}</span><span>更新於 ${date(row.updatedAt)}</span><span>${row.content.length} 字</span></div><div class="article-content">${escape(row.content)}</div></article><div class="dialog-actions"><button class="secondary" data-close>關閉</button>${user.role === 'editor' ? `<button class="secondary" data-action="return" data-id="${escape(row.id)}" ${blocked ? 'disabled' : ''}>退回稿件</button><button class="primary" data-action="approve" data-id="${escape(row.id)}" ${blocked ? 'disabled' : ''}>通過審查</button>` : row.status === 'draft' ? `<button class="primary" data-action="edit" data-id="${escape(row.id)}" ${blocked ? 'disabled' : ''}>編輯稿件</button>` : ''}</div>`;
+    $('#dialog-content').innerHTML = `${head(user.role === 'editor' ? '稿件審查' : '稿件內容', 'MANUSCRIPT / READING')}<article class="article-body">${badge(row.status)}<h3>${escape(row.title)}</h3><div class="article-details"><span>作者 ${escape(author(row.authorId))}</span><span>${escape(row.category)}</span><span>更新於 ${date(row.updatedAt)}</span><span>${row.content.length} 字</span></div>${returnNotice(row)}<div class="article-content">${escape(row.content)}</div></article><div class="dialog-actions"><button class="secondary" data-close>關閉</button>${user.role === 'editor' ? `<button class="secondary" data-action="return" data-id="${escape(row.id)}" ${blocked ? 'disabled' : ''}>退回稿件</button><button class="primary" data-action="approve" data-id="${escape(row.id)}" ${blocked ? 'disabled' : ''}>通過審查</button>` : row.status === 'draft' ? `<button class="primary" data-action="edit" data-id="${escape(row.id)}" ${blocked ? 'disabled' : ''}>編輯稿件</button>` : ''}</div>`;
     dialog.showModal();
   }
   async function action(command, id) {
@@ -143,8 +163,8 @@
     };
     if (!options[command]) return;
     const [title, message, button, success] = options[command];
-    if (await confirmAction(title, message, button, command === 'delete')) {
-      if (commit(command, { id }, success)) { dirty = false; dialog.close(); }
+    if (await confirmAction(title, message, button, command === 'delete', command === 'return')) {
+      if (commit(command, { id, reason: $('#return-reason').value }, success)) { dirty = false; dialog.close(); }
     }
   }
   document.addEventListener('click', event => {
@@ -157,9 +177,29 @@
     if (button) { filter = button.dataset.filter; render(); $('#filters').querySelector(`[data-filter="${filter}"]`).focus(); }
   });
   $('#search').addEventListener('input', event => { query = event.target.value; renderRows(Core.visible(rows, user)); });
-  $('#identity').addEventListener('change', event => {
-    user = Core.users.find(item => item.id === event.target.value); filter = 'all'; query = ''; $('#search').value = ''; render();
-    toast(`已切換為${user.name}（${user.role === 'author' ? '作者' : '編輯'}）`);
+  $('#demo-accounts').innerHTML = Core.users.map(item => `<button class="demo-account" type="button" data-account="${item.id}"><span><strong>${escape(item.name)}</strong><small>${escape(item.username)}</small></span><span>${item.role === 'author' ? '作者' : '編輯'} <span aria-hidden="true">↗</span></span></button>`).join('');
+  $('#demo-accounts').addEventListener('click', event => {
+    const button = event.target.closest('[data-account]'); if (!button) return;
+    const account = Core.users.find(item => item.id === button.dataset.account);
+    $('#login-username').value = account.username; $('#login-password').value = 'demo123';
+    $('#login-error').hidden = true; $('#login-form button[type="submit"]').focus();
+  });
+  $('#login-form').addEventListener('submit', event => {
+    event.preventDefault();
+    try {
+      user = Core.demoLogin($('#login-username').value, $('#login-password').value);
+      try { sessionStorage.setItem(SESSION_KEY, user.id); } catch {}
+      $('#login-error').hidden = true; $('#login-password').value = '';
+      try { const latest = read(); if (latest !== null) rows = latest; } catch {}
+      filter = 'all'; query = ''; $('#search').value = ''; render();
+      $('#logout').focus(); toast(`歡迎回來，${user.name}`);
+    } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
+  });
+  $('#logout').addEventListener('click', () => {
+    user = null; dirty = false; dialog.close();
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    $('#login-form').reset(); $('#login-error').hidden = true; $('#toast').hidden = true;
+    render(); $('#login-username').focus();
   });
   $('#new').addEventListener('click', () => openEditor());
   $('#empty-new').addEventListener('click', () => openEditor());

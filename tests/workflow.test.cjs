@@ -11,8 +11,9 @@ test('完整投稿流程：新增、修改、送出、退回、再送出、通�
   assert.equal(rows[0].title, '更新標題');
   rows = Core.transition(rows, a, 'submit', { id });
   assert.equal(Core.visible(rows, editor).length, 1);
-  rows = Core.transition(rows, editor, 'return', { id });
+  rows = Core.transition(rows, editor, 'return', { id, reason: '請補充文章結論' });
   assert.equal(rows[0].status, 'draft');
+  assert.equal(rows[0].returnReason, '請補充文章結論');
   assert.equal(Core.visible(rows, editor).length, 0);
   rows = Core.transition(rows, a, 'update', { ...input, id });
   rows = Core.transition(rows, a, 'submit', { id });
@@ -20,6 +21,24 @@ test('完整投稿流程：新增、修改、送出、退回、再送出、通�
   assert.equal(rows[0].status, 'approved');
   assert.equal(Core.visible(rows, editor).length, 0);
   assert.equal(Core.visible(rows, a).length, 1);
+});
+test('退回原因必填、限制長度，修改與重新送出仍保留編輯意見', () => {
+  let rows = Core.transition([], a, 'create', input), id = rows[0].id;
+  rows = Core.transition(rows, a, 'submit', { id });
+  for (const reason of [undefined, '', '  ', '字'.repeat(1001)]) assert.throws(() => Core.transition(rows, editor, 'return', { id, reason }));
+  rows = Core.transition(rows, editor, 'return', { id, reason: ' 請補充來源\n並調整結論 ' });
+  assert.equal(Core.visible(rows, a)[0].returnReason, '請補充來源\n並調整結論');
+  assert.equal(rows[0].returnedBy, editor.id);
+  assert.ok(Core.valid(JSON.parse(JSON.stringify(rows))));
+  rows = Core.transition(rows, a, 'update', { ...input, id });
+  rows = Core.transition(rows, a, 'submit', { id });
+  assert.equal(rows[0].returnReason, '請補充來源\n並調整結論');
+  assert.throws(() => Core.transition(rows, a, 'return', { id, reason: '作者不能審核' }));
+});
+test('示範登入驗證三個帳號，拒絕錯誤帳號密碼', () => {
+  for (const user of Core.users) assert.equal(Core.demoLogin(user.username, 'demo123').id, user.id);
+  assert.throws(() => Core.demoLogin('unknown', 'demo123'));
+  assert.throws(() => Core.demoLogin(a.username, 'wrong'));
 });
 test('作者只能操作自己的稿件，編輯不能新增或修改', () => {
   const rows = Core.transition([], a, 'create', input), id = rows[0].id;

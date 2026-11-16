@@ -1,12 +1,17 @@
 (function (root) {
   'use strict';
   const users = Object.freeze([
-    { id: 'author-1', name: '奶龍', role: 'author' },
-    { id: 'author-2', name: '奶蛙', role: 'author' },
-    { id: 'editor-1', name: '自由時報', role: 'editor' }
+    { id: 'author-1', username: 'nailong', name: '奶龍', role: 'author' },
+    { id: 'author-2', username: 'naiwa', name: '奶蛙', role: 'author' },
+    { id: 'editor-1', username: 'editor', name: '自由時報', role: 'editor' }
   ]);
   const categories = Object.freeze(['生活散文', '校園觀察', '科技新知', '文化評論', '其他']);
   const statuses = Object.freeze({ draft: '編輯中', review: '審查中', approved: '已通過' });
+  function demoLogin(username, password) {
+    const user = users.find(item => item.username === String(username).trim());
+    if (!user || password !== 'demo123') throw new Error('帳號或密碼不正確，請參考下方的示範帳號');
+    return user;
+  }
   function actor(user) {
     const found = users.find(item => item.id === user?.id && item.role === user.role);
     if (!found) throw new Error('請選擇有效的示範身分');
@@ -41,7 +46,12 @@
     }
     if (['approve', 'return'].includes(command)) {
       if (current.role !== 'editor' || row.status !== 'review') throw new Error('編輯只能審查審查中的稿件');
-      return rows.map(item => item.id === row.id ? { ...item, status: command === 'approve' ? 'approved' : 'draft', updatedAt: now } : item);
+      const reason = String(input.reason ?? '').trim();
+      if (command === 'return' && (!reason || reason.length > 1000)) throw new Error('請填寫退回原因，最多 1,000 字');
+      return rows.map(item => item.id === row.id ? {
+        ...item, status: command === 'approve' ? 'approved' : 'draft', updatedAt: now,
+        ...(command === 'return' ? { returnReason: reason, returnedBy: current.id, returnedAt: now } : {})
+      } : item);
     }
     throw new Error('不支援的操作');
   }
@@ -61,9 +71,12 @@
       Object.hasOwn(statuses, row.status) && categories.includes(row.category) &&
       typeof row.title === 'string' && row.title.trim().length > 0 && row.title.length <= 100 &&
       typeof row.content === 'string' && row.content.trim().length > 0 && row.content.length <= 20000 &&
-      Number.isFinite(Date.parse(row.createdAt)) && Number.isFinite(Date.parse(row.updatedAt)));
+      Number.isFinite(Date.parse(row.createdAt)) && Number.isFinite(Date.parse(row.updatedAt)) &&
+      (row.returnReason === undefined || typeof row.returnReason === 'string' && row.returnReason.length <= 1000) &&
+      (row.returnedBy === undefined || users.some(u => u.id === row.returnedBy && u.role === 'editor')) &&
+      (row.returnedAt === undefined || Number.isFinite(Date.parse(row.returnedAt))));
   }
-  const api = { users, categories, statuses, visible, transition, seed, valid };
+  const api = { users, categories, statuses, visible, transition, seed, valid, demoLogin };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ReviewCore = api;
 })(globalThis);
