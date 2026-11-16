@@ -1,15 +1,20 @@
 (function (root) {
   'use strict';
-  const users = Object.freeze([
+  const demoUsers = Object.freeze([
     { id: 'author-1', username: 'nailong', name: '奶龍', role: 'author' },
     { id: 'author-2', username: 'naiwa', name: '奶蛙', role: 'author' },
     { id: 'editor-1', username: 'editor', name: '自由時報', role: 'editor' }
   ]);
+  const users = [...demoUsers];
+  function loadAuthors(accounts) {
+    users.splice(demoUsers.length);
+    for (const account of accounts) users.push({ id: account.id, username: account.username, name: account.name, role: 'author' });
+  }
   const categories = Object.freeze(['生活散文', '校園觀察', '科技新知', '文化評論', '其他']);
   const statuses = Object.freeze({ draft: '編輯中', review: '審查中', approved: '已通過' });
   function demoLogin(username, password) {
-    const user = users.find(item => item.username === String(username).trim());
-    if (!user || password !== 'demo123') throw new Error('帳號或密碼不正確，請參考下方的示範帳號');
+    const user = demoUsers.find(item => item.username === String(username).trim().toLowerCase());
+    if (!user || password !== 'demo123') throw new Error('帳號或密碼不正確，請重新輸入');
     return user;
   }
   function actor(user) {
@@ -76,7 +81,7 @@
       (row.returnedBy === undefined || users.some(u => u.id === row.returnedBy && u.role === 'editor')) &&
       (row.returnedAt === undefined || Number.isFinite(Date.parse(row.returnedAt))));
   }
-  const api = { users, categories, statuses, visible, transition, seed, valid, demoLogin };
+  const api = { users, demoUsers, loadAuthors, categories, statuses, visible, transition, seed, valid, demoLogin };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ReviewCore = api;
 })(globalThis);

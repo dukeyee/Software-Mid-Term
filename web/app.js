@@ -1,16 +1,27 @@
 (() => {
   'use strict';
   const Core = window.ReviewCore;
+  const Auth = window.ReviewAuth;
   const $ = selector => document.querySelector(selector);
   const KEY = 'manuscript-studio:v1';
   const SESSION_KEY = 'manuscript-studio:demo-session:v1';
+  const ACCOUNTS_KEY = 'manuscript-studio:accounts:v1';
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let user = null, filter = 'all', query = '', blocked = false, timer, pendingConfirm;
+  function readAccounts() {
+    const saved = localStorage.getItem(ACCOUNTS_KEY);
+    const accounts = saved === null ? [] : JSON.parse(saved);
+    if (!Auth.valid(accounts)) throw new Error('帳號資料無法讀取，請保留現有網站資料並檢查瀏覽器儲存設定');
+    Core.loadAuthors(accounts);
+    return accounts;
+  }
+  try { readAccounts(); } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
   try { user = Core.users.find(item => item.id === sessionStorage.getItem(SESSION_KEY)) || null; } catch {}
   const dialog = $('#article-dialog');
   const confirmDialog = $('#confirm-dialog');
   function notice(message) { $('#storage-notice').textContent = message; $('#storage-notice').hidden = false; }
   function read() {
+    readAccounts();
     const saved = localStorage.getItem(KEY);
     if (saved === null) return null;
     const rows = JSON.parse(saved);
@@ -177,23 +188,68 @@
     if (button) { filter = button.dataset.filter; render(); $('#filters').querySelector(`[data-filter="${filter}"]`).focus(); }
   });
   $('#search').addEventListener('input', event => { query = event.target.value; renderRows(Core.visible(rows, user)); });
-  $('#demo-accounts').innerHTML = Core.users.map(item => `<button class="demo-account" type="button" data-account="${item.id}"><span><strong>${escape(item.name)}</strong><small>${escape(item.username)}</small></span><span>${item.role === 'author' ? '作者' : '編輯'} <span aria-hidden="true">↗</span></span></button>`).join('');
+  $('#demo-accounts').innerHTML = Core.demoUsers.map(item => `<button class="demo-account" type="button" data-account="${item.id}"><span><strong>${escape(item.name)}</strong><small>${escape(item.username)}</small></span><span>${item.role === 'author' ? '作者' : '編輯'} <span aria-hidden="true">↗</span></span></button>`).join('');
   $('#demo-accounts').addEventListener('click', event => {
     const button = event.target.closest('[data-account]'); if (!button) return;
     const account = Core.users.find(item => item.id === button.dataset.account);
     $('#login-username').value = account.username; $('#login-password').value = 'demo123';
     $('#login-error').hidden = true; $('#login-form button[type="submit"]').focus();
   });
-  $('#login-form').addEventListener('submit', event => {
+  let loggingIn = false;
+  $('#login-form').addEventListener('submit', async event => {
     event.preventDefault();
+    if (loggingIn) return;
+    loggingIn = true; const loginButton = $('#login-form button[type="submit"]'); loginButton.disabled = true;
     try {
-      user = Core.demoLogin($('#login-username').value, $('#login-password').value);
+      const accounts = readAccounts(), username = Auth.normalize($('#login-username').value);
+      const custom = accounts.find(item => item.username === username);
+      let authenticated;
+      if (custom) {
+        if (!await Auth.verify(custom, $('#login-password').value)) throw new Error('帳號或密碼不正確，請重新輸入');
+        authenticated = Core.users.find(item => item.id === custom.id);
+      } else authenticated = Core.demoLogin(username, $('#login-password').value);
+      user = authenticated;
       try { sessionStorage.setItem(SESSION_KEY, user.id); } catch {}
       $('#login-error').hidden = true; $('#login-password').value = '';
       try { const latest = read(); if (latest !== null) rows = latest; } catch {}
       filter = 'all'; query = ''; $('#search').value = ''; render();
       $('#logout').focus(); toast(`歡迎回來，${user.name}`);
     } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
+    finally { loggingIn = false; loginButton.disabled = false; }
+  });
+  const registerDialog = $('#register-dialog');
+  let registering = false;
+  function closeRegister() { if (!registering) { $('#register-form').reset(); registerDialog.close(); } }
+  $('#open-register').addEventListener('click', () => {
+    $('#register-form').reset(); $('#register-error').hidden = true; registerDialog.showModal(); $('#register-name').focus();
+  });
+  $('#register-close').addEventListener('click', closeRegister);
+  $('#register-cancel').addEventListener('click', closeRegister);
+  registerDialog.addEventListener('cancel', event => { event.preventDefault(); closeRegister(); });
+  $('#register-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (registering) return;
+    registering = true;
+    $('#register-submit').disabled = $('#register-cancel').disabled = $('#register-close').disabled = true;
+    $('#register-submit').textContent = '建立中…'; $('#register-error').hidden = true;
+    try {
+      const input = Object.fromEntries(new FormData(event.currentTarget));
+      const account = await Auth.register(input, readAccounts());
+      const latest = readAccounts();
+      if (!Auth.available(account.username, latest)) throw new Error('這個帳號已有人使用，請更換帳號');
+      const next = [...latest, account];
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next));
+      Core.loadAuthors(next);
+      $('#login-username').value = account.username; $('#login-password').value = '';
+      $('#login-error').hidden = true;
+      $('#register-form').reset(); registerDialog.close(); $('#login-password').focus();
+      toast('註冊成功，請使用新帳號與剛設定的密碼登入');
+    } catch (error) {
+      $('#register-error').textContent = error.message || '無法儲存帳號，請確認瀏覽器允許網站儲存資料';
+      $('#register-error').hidden = false;
+    } finally {
+      registering = false; $('#register-submit').disabled = $('#register-cancel').disabled = $('#register-close').disabled = false;
+      $('#register-submit').textContent = '建立帳號';
+    }
   });
   $('#logout').addEventListener('click', () => {
     user = null; dirty = false; dialog.close();
@@ -205,7 +261,7 @@
   $('#empty-new').addEventListener('click', () => openEditor());
   $('#workspace').addEventListener('click', () => { filter = 'all'; query = ''; $('#search').value = ''; render(); $('#main').scrollIntoView({ behavior: 'smooth' }); });
   window.addEventListener('storage', event => {
-    if (event.key !== KEY && event.key !== null) return;
+    if (event.key !== KEY && event.key !== ACCOUNTS_KEY && event.key !== null) return;
     try {
       const current = read(); if (current === null) throw new Error('missing'); rows = current; render();
       toast('另一個分頁已更新稿件；若正在編輯，請重新開啟以取得最新內容');
