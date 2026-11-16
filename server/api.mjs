@@ -65,7 +65,7 @@ export async function handleApi(request, env) {
         await db.prepare('INSERT OR IGNORE INTO users (id,username,name,role,password_hash,salt,iterations,created_at) VALUES (?,?,?,?,?,?,?,?)').bind(demo.id, demo.username, demo.name, demo.role, await passwordHash('demo123', salt), salt, iterations, now).run();
       }
       const count = await db.prepare('SELECT COUNT(*) AS total FROM manuscripts').first();
-      if (count.total === 0 && Array.isArray(input.seedRows)) {
+      if (Number(count.total) === 0 && Array.isArray(input.seedRows)) {
         const statements = input.seedRows.slice(0, 10).map(row => {
           const data = articleFields(row);
           check(['author-1', 'author-2'].includes(row.authorId) && ['draft', 'review', 'approved'].includes(row.status), 400, '示範資料格式錯誤');
@@ -77,7 +77,7 @@ export async function handleApi(request, env) {
     }
     if (url.pathname === '/api/health' && request.method === 'GET') {
       await db.prepare('SELECT 1 AS ok FROM users LIMIT 1').all();
-      return json({ ok: true, database: 'Cloudflare D1 / SQLite' });
+      return json({ ok: true, database: db.label || 'Cloudflare D1 / SQLite' });
     }
     if (url.pathname === '/api/register' && request.method === 'POST') {
       const input = await body(request), name = String(input.name ?? '').trim(), username = String(input.username ?? '').trim().toLowerCase(), password = String(input.password ?? '');
@@ -89,7 +89,7 @@ export async function handleApi(request, env) {
       check(!await db.prepare('SELECT id FROM users WHERE username=?').bind(username).first(), 409, '這個帳號已有人使用');
       const id = crypto.randomUUID(), salt = hex(crypto.getRandomValues(new Uint8Array(16)));
       try { await db.prepare("INSERT INTO users (id,username,name,role,password_hash,salt,iterations,created_at) VALUES (?,?,?,'author',?,?,?,?)").bind(id, username, name, await passwordHash(password, salt), salt, iterations, new Date().toISOString()).run(); }
-      catch (error) { if (String(error.message).includes('UNIQUE')) throw new HttpError(409, '這個帳號已有人使用'); throw error; }
+      catch (error) { if (String(error.message).includes('UNIQUE') || error.code === 'ER_DUP_ENTRY') throw new HttpError(409, '這個帳號已有人使用'); throw error; }
       return json({ user: { id, username, name, role: 'author' } }, 201);
     }
     if (url.pathname === '/api/login' && request.method === 'POST') {

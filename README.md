@@ -2,17 +2,33 @@
 
 以 HTML、CSS、JavaScript 製作的繁體中文投稿審查網站，搭配伺服器 API 與真正的 SQL 資料庫
 
-## 資料庫版入口
+## 本機資料庫版入口
+
+這台電腦已使用 XAMPP 的 MariaDB，資料庫名稱為 `software_mid_term`
+
+1. 雙擊專案內的 `啟動本機網站.cmd`
+2. 網站：http://127.0.0.1:4173/
+3. 資料庫管理：http://127.0.0.1:8080/phpmyadmin/ ，在左側點選 `software_mid_term`
+
+啟動檔會在背景啟動本機資料庫、網站與 phpMyAdmin 所需的 Apache，關閉啟動視窗不會停止網站
+
+已從雲端複製 3 個帳號及 5 篇稿件到這台電腦，原雲端資料保留，兩邊之後的修改各自獨立，不會自動同步
+
+完整設定、資料表用途與備份方式請見 [本機 MariaDB 操作說明](docs/local-mysql.md)
+
+## 雲端資料庫版入口
 
 https://dukeyee-submission-review.familiarboot4.chatgpt.site/
 
-網站維持私人，先登入網站擁有者的 ChatGPT 帳號，再以投稿系統帳號登入
+網站已設為公開，可直接開啟，再以投稿系統帳號登入
 
 GitHub Pages 仍可作為入口，但會跳轉到上述後端網站，因為 GitHub Pages 本身只能託管靜態網頁，無法執行這套資料庫 API
 
 ## 現在的架構
 
-瀏覽器 → 同來源 Worker API → Cloudflare D1（SQLite）
+本機：瀏覽器 → Node.js API → XAMPP MariaDB
+
+雲端：瀏覽器 → 同來源 Worker API → Cloudflare D1（SQLite）
 
 - 帳號、密碼驗證資料、登入工作階段、稿件與審查紀錄皆保存在伺服器資料庫
 - 不同瀏覽器登入同一個投稿帳號，可以讀取相同資料
@@ -41,7 +57,21 @@ GitHub Pages 仍可作為入口，但會跳轉到上述後端網站，因為 Git
 
 ## 本機執行
 
-需要 Node.js 22.13 或更新版本，本機使用 Node.js 內建 SQLite，與雲端使用相同 SQL 表結構及 API 程式
+需要 Node.js 22.13 或更新版本、pnpm，以及 XAMPP，預設安裝位置為 `C:/xampp`
+
+目前這台電腦已設定完成，使用啟動檔即可，重新下載專案時的初始化步驟請見 [本機設定文件](docs/local-mysql.md)
+
+也可在終端機執行
+
+```sh
+pnpm start
+```
+
+連線設定存於 `.env.local`，資料庫資料與連線密碼不會上傳到 GitHub
+
+### 保留的 SQLite 開發模式
+
+若要使用原本的獨立 SQLite 測試資料庫，先停止佔用 4173 的網站，再執行
 
 ```sh
 node scripts/database-server.mjs

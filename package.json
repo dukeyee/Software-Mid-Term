@@ -2,9 +2,13 @@
   "name": "submission-review-system",
   "version": "0.1.0",
   "private": true,
-  "description": "投稿審查系統初版：瀏覽器本機示範",
+  "description": "投稿審查系統：本機 MariaDB 與雲端 D1",
   "scripts": {
-    "start": "node scripts/database-server.mjs",
+    "start": "node scripts/start-local.mjs",
+    "start:mysql": "node scripts/mysql-server.mjs",
+    "start:sqlite": "node scripts/database-server.mjs",
+    "db:init:mysql": "node scripts/init-mysql.mjs",
+    "test:mysql": "node --test tests/mysql-api.integration.cjs",
     "build": "node scripts/build-worker.cjs",
     "test": "node --test tests/*.test.cjs",
     "db:generate": "node node_modules/drizzle-kit/bin.cjs generate"
@@ -16,5 +20,8 @@
     "drizzle-kit": "0.31.10",
     "drizzle-orm": "0.45.2"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@11.25.0",
+  "dependencies": {
+    "mysql2": "^3.15.3"
+  }
 }
