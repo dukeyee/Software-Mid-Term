@@ -8,7 +8,12 @@ export function openDatabase(filename = ':memory:') {
       bind(...args) { values = args; return statement; },
       async first() { return sqlite.prepare(sql).get(...values) || null; },
       async all() { return { results: sqlite.prepare(sql).all(...values) }; },
-      async run() { const result = sqlite.prepare(sql).run(...values); return { success: true, meta: { changes: Number(result.changes) } }; }
+      async run() {
+        const before = Number(sqlite.prepare('SELECT total_changes() AS n').get().n);
+        sqlite.prepare(sql).run(...values);
+        const after = Number(sqlite.prepare('SELECT total_changes() AS n').get().n);
+        return { success: true, meta: { changes: after - before } };
+      }
     };
     return statement;
   };

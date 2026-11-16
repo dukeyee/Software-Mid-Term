@@ -73,3 +73,18 @@ test('資料寫入 SQLite 檔案，關閉並重開資料庫後仍存在', async 
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+test('刪除退回稿件時連帶刪除審查紀錄，D1 累計變更列數仍視為成功', async () => {
+  const { db, call } = await fixture(':memory:');
+  try {
+    const a = (await call('/api/login', { username: 'nailong', password: 'demo123' })).cookie;
+    const e = (await call('/api/login', { username: 'editor', password: 'demo123' })).cookie;
+    let row = (await call('/api/manuscripts', { category: '其他', title: '刪除退回稿件', content: '測試審查紀錄連帶刪除' }, a)).data.rows[0];
+    row = (await call(`/api/manuscripts/${row.id}/submit`, { version: row.version }, a)).data.rows[0];
+    await call(`/api/manuscripts/${row.id}/return`, { version: row.version, reason: '修改後再送出' }, e);
+    row = (await call('/api/session', undefined, a)).data.rows[0];
+    assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS n FROM reviews').get().n, 1);
+    assert.equal((await call(`/api/manuscripts/${row.id}/delete`, { version: row.version }, a)).status, 200);
+    assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS n FROM reviews').get().n, 0);
+    assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS n FROM manuscripts').get().n, 0);
+  } finally { db.close(); }
+});

@@ -144,7 +144,8 @@ export async function handleApi(request, env) {
           const data = articleFields(input);
           statement = db.prepare("UPDATE manuscripts SET category=?,title=?,content=?,version=version+1,updated_at=? WHERE id=? AND version=? AND status='draft' AND author_id=?").bind(data.category, data.title, data.content, now, id, row.version, user.id);
         }
-        const result = await statement.run(); check(result.meta.changes === 1, 409, '稿件已更新，請重新載入');
+        // D1 includes cascading review deletions in its changed-row count.
+        const result = await statement.run(); check(result.meta.changes > 0, 409, '稿件已更新，請重新載入');
       } else {
         check(user.role === 'editor', 403, '只有編輯可以審查');
         check(row.status === 'review', 409, '只能審查審查中的稿件');
