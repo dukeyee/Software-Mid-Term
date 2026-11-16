@@ -4,6 +4,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+if (fs.existsSync(path.join(root, '.env.shared'))) process.loadEnvFile(path.join(root, '.env.shared'));
+const shared = process.env.STUDIO_SHARED_API;
 const xampp = process.env.XAMPP_ROOT || 'C:/xampp';
 const data = path.join(root, 'data'); fs.mkdirSync(data, { recursive: true });
 const listening = port => new Promise(resolve => {
@@ -31,28 +33,35 @@ async function wait(port) {
   }
   throw new Error('Port ' + port + ' did not start; inspect data/*.error.log');
 }
-if (!await listening(3306)) {
+if (!shared && !await listening(3306)) {
   background(path.join(xampp, 'mysql/bin/mysqld.exe'), ['--defaults-file=' + path.join(xampp, 'mysql/bin/my.ini'), '--standalone', '--bind-address=127.0.0.1'], 'mysql');
   await wait(3306);
 }
-if (!fs.existsSync(path.join(root, '.env.local'))) {
+if (!shared && !fs.existsSync(path.join(root, '.env.local'))) {
   console.error('Run node scripts/init-mysql.mjs first to configure the project database'); process.exitCode = 1;
 } else {
-  if (!await listening(8080)) {
+  {
     let config = fs.readFileSync(path.join(xampp, 'apache/conf/httpd.conf'), 'utf8');
     config = config.replace(/^Listen\s+\S+.*$/gm, 'Listen 127.0.0.1:8080')
       .replace(/^ServerName\s+.*$/gm, 'ServerName localhost:8080')
       .replace(/^Include\s+.*httpd-(ssl|ajp)\.conf.*$/gm, '# Disabled in project-local Apache config');
     config += '\nPidFile "' + path.join(data, 'apache.pid').replaceAll('\\', '/') + '"\n';
+    if (shared && process.env.STUDIO_SHARED_ADMIN) {
+      const adminOrigin = new URL(process.env.STUDIO_SHARED_ADMIN);
+      if (adminOrigin.protocol !== 'https:' || adminOrigin.pathname !== '/') throw new Error('Invalid shared database manager URL');
+      config += '\nRedirectMatch 302 ^/phpmyadmin(?:/.*)?$ ' + adminOrigin.href + '\n';
+    }
     const configFile = path.join(data, 'httpd-local.conf'); fs.writeFileSync(configFile, config);
+    if (!await listening(8080)) {
     background(path.join(xampp, 'apache/bin/httpd.exe'), ['-f', configFile], 'apache');
     await wait(8080);
+    }
   }
   if (!await listening(4173)) { background(process.execPath, [path.join(root, 'scripts/mysql-server.mjs')], 'website'); await wait(4173); }
   const response = await fetch('http://127.0.0.1:4173/api/health');
   const status = await response.json();
-  if (!response.ok || !status.database?.includes('MariaDB')) throw new Error('Port 4173 is occupied by another website; stop it before retrying');
+  if (!response.ok || !status.database?.includes(shared ? '共用雲端 MySQL' : 'MariaDB')) throw new Error('Port 4173 is occupied by another website or database mode; stop it before retrying');
   const admin = await fetch('http://127.0.0.1:8080/phpmyadmin/');
   if (!admin.ok) throw new Error('phpMyAdmin did not respond successfully');
-  console.log('Website: http://127.0.0.1:4173/\nDatabase manager: http://127.0.0.1:8080/phpmyadmin/\nDatabase: software_mid_term');
+  console.log('Website: http://127.0.0.1:4173/\nDatabase manager: ' + (shared ? process.env.STUDIO_SHARED_ADMIN : 'http://127.0.0.1:8080/phpmyadmin/') + '\nDatabase: software_mid_term\nMode: ' + (shared ? 'Shared cloud MySQL' : 'Local MariaDB'));
 }

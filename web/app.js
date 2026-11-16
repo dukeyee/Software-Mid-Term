@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  if (location.hostname.endsWith('github.io')) { location.replace('https://dukeyee-submission-review.familiarboot4.chatgpt.site/'); return; }
+  if (location.hostname.endsWith('github.io')) { location.replace('https://submission-web-production.up.railway.app/'); return; }
   const Core = window.ReviewCore;
   const $ = selector => document.querySelector(selector);
   const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

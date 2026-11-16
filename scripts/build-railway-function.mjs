@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const assets = Object.fromEntries(['index.html','styles.css','app.js','core.js'].map(name => [name, fs.readFileSync(path.join(root, 'web', name), 'utf8')]));
+const api = fs.readFileSync(path.join(root, 'server/api.mjs'), 'utf8');
+const adapter = fs.readFileSync(path.join(root, 'server/mysql-adapter.mjs'), 'utf8').replace("import mysql from 'mysql2/promise';", '');
+const runtime = fs.readFileSync(path.join(root, 'server/cloud-runtime.mjs'), 'utf8').replace(/^import .*;\r?\n/gm, '');
+const schema = fs.readFileSync(path.join(root, 'db/mysql-schema.sql'), 'utf8');
+const output = `import mysql from 'mysql2/promise';\n${api}\n${adapter}\n${runtime}\nconst app = await createCloudApp(Bun.env, ${JSON.stringify(assets)}, ${JSON.stringify(schema)});\nBun.serve({port:Number(Bun.env.PORT || 3000),fetch:request=>app.fetch(request)});\n`;
+fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
+fs.writeFileSync(path.join(root, 'dist/railway-function.ts'), output);
+console.log('Prepared dist/railway-function.ts');
