@@ -1,5 +1,7 @@
 # 資料庫版實作說明
 
+目前正式入口與本機入口已共用 Railway MySQL，查看入口、登入及驗證方式請見 [共用資料庫說明](shared-cloud-mysql.md)
+
 目前另提供電腦本機 MariaDB 模式，日常啟動、phpMyAdmin 管理及 SQL 備份請見 [本機資料庫操作說明](local-mysql.md)
 
 以下保留共用 API 與原雲端 D1 架構的技術說明

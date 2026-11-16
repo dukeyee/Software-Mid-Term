@@ -2,7 +2,28 @@
 
 以 HTML、CSS、JavaScript 製作的繁體中文投稿審查網站，搭配伺服器 API 與真正的 SQL 資料庫
 
-## 本機資料庫版入口
+## 共用雲端資料庫入口
+
+目前線上網站、本機網站與雲端 phpMyAdmin 共用同一個 Railway MySQL
+
+- 線上網站：https://submission-web-production.up.railway.app/
+- 本機網站：http://127.0.0.1:4173/
+- 雲端資料庫管理：https://database-admin-production.up.railway.app/
+- 管理帳密：這台電腦的 `data/cloud-database-login.txt`，僅有讀取及匯出權限，未上傳 GitHub
+
+網站帳號和資料庫管理帳號不同，phpMyAdmin 請使用上述檔案中的專用帳密
+
+本機需要網路連線及忽略的 `.env.shared` 設定，雙擊 `啟動本機網站.cmd` 即可
+
+`http://127.0.0.1:8080/phpmyadmin/` 會導向雲端管理頁，原 Sites 網址與 GitHub Pages 入口也會導向新版網站
+
+2026-11-17 完成資料共用切換，原 D1 與本機 MariaDB 保留為切換前備份，之後的正式操作都使用雲端 MySQL
+
+詳細操作與部署方式請見 [共用資料庫說明](docs/shared-cloud-mysql.md)
+
+## 原本機資料庫模式（歷史說明）
+
+以下保留切換前的本機模式說明，目前這台電腦以共用模式啟動，不再寫入這份舊資料庫
 
 這台電腦已使用 XAMPP 的 MariaDB，資料庫名稱為 `software_mid_term`
 
@@ -26,9 +47,11 @@ GitHub Pages 仍可作為入口，但會跳轉到上述後端網站，因為 Git
 
 ## 現在的架構
 
-本機：瀏覽器 → Node.js API → XAMPP MariaDB
+本機：瀏覽器 → 本機 Node.js → HTTPS 共用 API → Railway MySQL
 
-雲端：瀏覽器 → 同來源 Worker API → Cloudflare D1（SQLite）
+雲端：瀏覽器 → Railway Bun API → Railway MySQL
+
+管理：登入雲端 phpMyAdmin → Railway 私人網路 → 同一個 MySQL
 
 - 帳號、密碼驗證資料、登入工作階段、稿件與審查紀錄皆保存在伺服器資料庫
 - 不同瀏覽器登入同一個投稿帳號，可以讀取相同資料

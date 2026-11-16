@@ -1,5 +1,7 @@
 # 電腦本機 MariaDB 操作說明
 
+此文件保留原本機獨立資料庫模式，目前這台電腦已改成共用雲端 MySQL，請優先閱讀 [共用資料庫說明](shared-cloud-mysql.md)
+
 ## 日常開啟
 
 雙擊專案根目錄的 `啟動本機網站.cmd`，看到 Website 與 Database manager 網址即代表啟動成功
