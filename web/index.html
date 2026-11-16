@@ -3,34 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="稿間投稿審查系統：管理創作、送出投稿與編輯審查。">
+  <meta name="description" content="稿間投稿審查系統：管理創作、送出投稿與編輯審查">
   <title>稿間｜投稿審查系統</title>
-  <link rel="stylesheet" href="styles.css?v=20261116-dark">
-  <script src="core.js?v=20261116-dark" defer></script>
-  <script src="app.js?v=20261116-dark" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20261116-no-periods">
+  <script src="core.js?v=20261116-no-periods" defer></script>
+  <script src="app.js?v=20261116-no-periods" defer></script>
 </head>
 <body>
   <aside class="sidebar">
     <a class="brand" href="./" aria-label="稿間首頁"><span class="brand-mark" aria-hidden="true">稿</span><span>稿間<small>MANUSCRIPT STUDIO</small></span></a>
     <div class="workspace-label">工作空間</div>
     <nav aria-label="工作空間"><button class="nav-item active" id="workspace"><span aria-hidden="true">▤</span> <span id="nav-label">我的投稿</span><span class="nav-count" id="nav-count"></span></button></nav>
-    <section class="sidebar-guide"><span class="guide-line"></span><h2>每一份創作，都值得被看見。</h2><p>從第一個字，到完成審查，<br>在這裡，讓想法慢慢成形。</p><div class="guide-steps">編輯中 <span>→</span> 審查中 <span>→</span> 已通過</div></section>
+    <section class="sidebar-guide"><span class="guide-line"></span><h2>每一份創作，都值得被看見</h2><p>從第一個字，到完成審查，<br>在這裡，讓想法慢慢成形</p><div class="guide-steps">編輯中 <span>→</span> 審查中 <span>→</span> 已通過</div></section>
     <div class="sidebar-bottom"><span class="version-dot"></span> 期中個人專題 <span>v0.1</span></div>
   </aside>
   <div class="shell">
     <header class="topbar"><div class="breadcrumb">工作空間 <span>/</span> <strong id="breadcrumb">我的投稿</strong></div><div class="identity"><span class="demo-label">示範身分</span><label class="sr-only" for="identity">切換示範身分</label><select id="identity"><option value="author-1">奶龍 · 作者</option><option value="author-2">奶蛙 · 作者</option><option value="editor-1">自由時報 · 編輯</option></select><span class="avatar" id="avatar" aria-hidden="true">龍</span></div></header>
     <main id="main">
-      <div class="page-heading"><div><div class="eyebrow" id="eyebrow">YOUR WRITING, IN PROGRESS</div><h1 id="page-title">我的投稿<span class="title-period">。</span></h1><p id="page-description">好好寫作，讓每一個想法找到自己的位置。</p></div><button class="primary new-button" id="new"><span aria-hidden="true">＋</span> 新增投稿</button></div>
+      <div class="page-heading"><div><div class="eyebrow" id="eyebrow">YOUR WRITING, IN PROGRESS</div><h1 id="page-title">我的投稿</h1><p id="page-description">好好寫作，讓每一個想法找到自己的位置</p></div><button class="primary new-button" id="new"><span aria-hidden="true">＋</span> 新增投稿</button></div>
       <div class="storage-notice" id="storage-notice" role="alert" hidden></div>
       <section class="stats" id="stats" aria-label="稿件統計"></section>
       <section class="manuscripts" aria-labelledby="list-heading">
-        <div class="list-header"><div><h2 id="list-heading">稿件管理</h2><p id="list-description">每一次修改，都是離完成更近一步。</p></div><span class="list-total" id="list-total"></span></div>
+        <div class="list-header"><div><h2 id="list-heading">稿件管理</h2><p id="list-description">每一次修改，都是離完成更近一步</p></div><span class="list-total" id="list-total"></span></div>
         <div class="toolbar"><div class="tabs" id="filters" role="group" aria-label="依稿件狀態篩選"></div><label class="search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="search" type="search" aria-label="搜尋稿件" placeholder="搜尋標題或類別…"></label></div>
         <div class="table-scroll"><table><caption class="sr-only" id="table-caption">我的投稿清單</caption><thead><tr><th scope="col">稿件標題</th><th scope="col">類別</th><th scope="col" id="author-heading" hidden>作者</th><th scope="col">狀態</th><th scope="col">更新日期</th><th scope="col" class="align-right">操作</th></tr></thead><tbody id="rows"></tbody></table></div>
         <div class="empty" id="empty" hidden><div aria-hidden="true">▤</div><h3 id="empty-title"></h3><p id="empty-description"></p><button class="secondary" id="empty-new">開始第一篇投稿</button></div>
-        <div class="table-footer"><span id="result-count" role="status"></span><span>用文字，留下你的觀點。</span></div>
+        <div class="table-footer"><span id="result-count" role="status"></span><span>用文字，留下你的觀點</span></div>
       </section>
-      <div class="page-note"><span class="note-icon" aria-hidden="true">i</span><p id="workflow-note">編輯中的稿件可隨時修改；送出後將交由編輯審查，退回後可再次編輯。</p></div>
+      <div class="page-note"><span class="note-icon" aria-hidden="true">i</span><p id="workflow-note">編輯中的稿件可隨時修改；送出後將交由編輯審查，退回後可再次編輯</p></div>
       <footer class="footer"><span>稿間 <span class="footer-divider">/</span> 投稿審查系統</span><span>示範版 · 資料僅儲存於此瀏覽器</span></footer>
     </main>
   </div>

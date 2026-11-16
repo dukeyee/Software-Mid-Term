@@ -40,7 +40,7 @@ main{max-width:1600px;padding:44px 48px 0;margin:auto}
 .page-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:31px}
 .eyebrow{font-size:13px;letter-spacing:2px;color:#8cdbb7;font-weight:600}
 h1{font-family:Georgia,"Microsoft JhengHei",serif;font-size:40px;font-weight:600;letter-spacing:2px;line-height:1.5;margin:9px 0}
-.title-period{color:var(--gold)}
+
 .page-heading p{color:var(--muted);font-size:16px;margin:7px 0 0}
 .primary,.secondary,.danger{border-radius:5px;padding:10px 20px;border:1px solid transparent;font-weight:500;font-size:16px}
 .primary{background:var(--green);color:#1a2520}
