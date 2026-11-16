@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+unset APACHE_PORT
+exec /docker-entrypoint.sh apache2 -f /etc/phpmyadmin/httpd-shared.conf -DFOREGROUND
